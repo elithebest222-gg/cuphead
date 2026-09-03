@@ -3,11 +3,28 @@
 <head>
     <meta charset="utf-8">
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-    <title>Unity WebGL Player | Cuphead </title>
+    <title>Unity WebGL Player | Cuphead</title>
     <style>
-        body { background-color: black; margin: 0; padding: 0; overflow: hidden; }
-        #gameContainer { width: 100vw !important; height: 100vh !important; }
-        canvas { width: 100% !important; height: 100% !important; }
+        body { 
+            background-color: black; 
+            margin: 0; 
+            padding: 0; 
+            overflow: hidden; 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            user-select: none;
+        }
+        #gameContainer { 
+            width: 100vw !important; 
+            height: 100vh !important; 
+            position: absolute; 
+            top: 0; 
+            left: 0; 
+            z-index: 1; 
+        }
+        canvas { 
+            width: 100% !important; 
+            height: 100% !important; 
+        }
         #loading-text {
             font-weight: bold;
             background: linear-gradient(270deg, #ff0000, #ff7f00, #ffff00, #00ff00, #0000ff, #4b0082, #8f00ff);
@@ -15,123 +32,234 @@
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             animation: rainbow 3s ease infinite;
-            font-size: 48px;
+            font-size: clamp(24px, 5vw, 48px);
             font-family: cursive;
             text-align: center;
-            margin-top: 20px;
+            margin-top: 5vh;
+            position: relative;
+            z-index: 2;
+            text-shadow: 0 0 10px rgba(0,0,0,0.5);
         }
         @keyframes rainbow {
             0% { background-position: 0% 50%; }
             50% { background-position: 100% 50%; }
             100% { background-position: 0% 50%; }
         }
+
+        /* ==========================================================================
+           CUSTOM DEVELOPMENT AND NETWORK DEBBUGING PANEL (NON-EMBED)
+           ========================================================================== */
+        #custom-dev-tools {
+            position: fixed;
+            bottom: 15px;
+            right: 15px;
+            width: 420px;
+            max-height: 480px;
+            background: rgba(15, 15, 18, 0.96);
+            color: #00ff66;
+            border: 1px solid #3a3a4a;
+            border-radius: 8px;
+            font-family: 'Consolas', 'Fira Code', Monaco, monospace;
+            font-size: 12px;
+            z-index: 99999;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.85);
+            overflow: hidden;
+            transition: transform 0.2s ease, max-height 0.2s ease;
+        }
+        #custom-dev-tools.minimized {
+            max-height: 36px;
+        }
+        #dev-header {
+            background: #22222b;
+            padding: 8px 12px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #3a3a4a;
+            color: #ffffff;
+            font-weight: bold;
+            letter-spacing: 0.5px;
+        }
+        #dev-header:hover {
+            background: #2a2a35;
+        }
+        #dev-body {
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            overflow-y: auto;
+        }
+        .dev-section-title {
+            color: #888899;
+            font-weight: bold;
+            text-transform: uppercase;
+            font-size: 10px;
+            border-bottom: 1px dashed #333344;
+            padding-bottom: 2px;
+            margin-bottom: 4px;
+        }
+        .dev-row {
+            display: flex;
+            gap: 8px;
+        }
+        .dev-btn {
+            background: #2a2a38;
+            color: #ffffff;
+            border: 1px solid #44445c;
+            padding: 6px 10px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 11px;
+            font-weight: bold;
+            border-radius: 4px;
+            flex: 1;
+            transition: all 0.15s ease;
+            text-align: center;
+        }
+        .dev-btn:hover { 
+            background: #3b3b4f;
+            border-color: #00ff66;
+        }
+        .dev-btn.danger {
+            background: #4a1515;
+            border-color: #732424;
+            color: #ff9999;
+        }
+        .dev-btn.danger:hover {
+            background: #611b1b;
+            border-color: #ff3333;
+            color: #ffffff;
+        }
+        #dev-log-output {
+            background: #09090b;
+            border: 1px solid #22222b;
+            padding: 8px;
+            height: 160px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            color: #d4d4d8;
+            border-radius: 4px;
+            font-size: 11px;
+            line-height: 1.4;
+        }
+        .status-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .status-row { 
+            display: flex; 
+            justify-content: space-between; 
+            color: #a1a1aa; 
+            background: rgba(255,255,255,0.02);
+            padding: 3px 6px;
+            border-radius: 2px;
+        }
+        .status-val { 
+            font-weight: bold;
+        }
+        .log-time { color: #52525b; }
+        .log-WARN { color: #f59e0b; }
+        .log-ERROR { color: #ef4444; }
+        .log-SUCCESS { color: #22c55e; }
     </style>
 </head>
 <body>
     <div id="loading-text">LOADING... 0.00 MB / 2101.31 MB</div>
     <div id="gameContainer"></div>
 
+    <!-- CUSTOM CLIENT-SIDE DEV CONTROL CONSOLE -->
+    <div id="custom-dev-tools">
+        <div id="dev-header" onclick="toggleDevTools()">
+            <span>🛠️ ENGINE STORAGE & ENGINE UTILS</span>
+            <span id="dev-toggle-icon">[-]</span>
+        </div>
+        <div id="dev-body">
+            <div>
+                <div class="dev-section-title">Database Storage Mappings</div>
+                <div class="dev-row">
+                    <button class="dev-btn danger" onclick="clearGameCache()">🚨 PURGE LOCAL CACHE API</button>
+                    <button class="dev-btn" onclick="updateCacheStatusFields()">🔄 REFRESH SYSTEM STATUS</button>
+                </div>
+            </div>
+            
+            <div>
+                <div class="dev-section-title">Asset Storage Allocations</div>
+                <div class="status-grid">
+                    <div class="status-row">Data Split Array (103 Parts): <span id="status-data" class="status-val">Analyzing...</span></div>
+                    <div class="status-row">Wasm Translation Array (2 Parts): <span id="status-wasm" class="status-val">Analyzing...</span></div>
+                    <div class="status-row">Asm Translation Array (3 Parts): <span id="status-asm" class="status-val">Analyzing...</span></div>
+                    <div class="status-row">Asm Framework Script (1 File): <span id="status-framework" class="status-val">Analyzing...</span></div>
+                    <div class="status-row">Asm Memory Allocation (1 File): <span id="status-memory" class="status-val">Analyzing...</span></div>
+                </div>
+            </div>
+
+            <div>
+                <div class="dev-section-title">Active Environment Interceptor Streams</div>
+                <div id="dev-log-output"></div>
+            </div>
+        </div>
+    </div>
+
     <script src="Build/UnityLoader.js"></script>
     <script>
-        var loadingText = document.querySelector("#loading-text");
+        const loadingText = document.querySelector("#loading-text");
+        const logOutput = document.getElementById("dev-log-output");
+        const cacheName = "cuphead-cache";
         let loadedBytes = 0;
+        const mbTotal = '2101.31';
 
-        async function fetchWithProgress(url) {
-            const response = await fetch(url);
-            if (!response.ok) throw new Error(`Failed to fetch ${url}`);
-            const reader = response.body.getReader();
-            let chunks = [];
-            let received = 0;
-
-            while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
-                received += value.length;
-                loadedBytes += value.length;
-                chunks.push(value);
-                
-                let mbDone = (loadedBytes / (1024 * 1024)).toFixed(2);
-                let mbTotal = '2101.31';
-                loadingText.textContent = `LOADING ASSETS... ${mbDone} MB / ${mbTotal} MB`;
-            }
-
-            let fullBuffer = new Uint8Array(received);
-            let offset = 0;
-            for (let chunk of chunks) {
-                fullBuffer.set(chunk, offset);
-                offset += chunk.length;
-            }
-            return fullBuffer.buffer;
+        // Custom Console Visual Output Terminal Pipe
+        function devLog(msg, type = "INFO") {
+            const time = new Date().toLocaleTimeString();
+            let styleClass = `log-${type}`;
+            logOutput.innerHTML += `<span class="log-time">[${time}]</span> <span class="${styleClass}">[${type}]</span> ${msg}\n`;
+            logOutput.scrollTop = logOutput.scrollHeight;
+            console.log(`[CupheadDev] [${type}] ${msg}`);
         }
 
-        async function mergeFiles(fileParts, cacheKey) {
-            const cache = await caches.open("cuphead-cache");
-            const cachedResponse = await cache.match(cacheKey);
-            if (cachedResponse) {
-                // Update total file tracking so math doesn't stall if reading from cache
-                const blob = await cachedResponse.blob();
-                loadedBytes += blob.size; 
-                return URL.createObjectURL(blob);
+        // Toggle panel minimize state
+        function toggleDevTools() {
+            const panel = document.getElementById("custom-dev-tools");
+            const icon = document.getElementById("dev-toggle-icon");
+            if (panel.classList.contains("minimized")) {
+                panel.classList.remove("minimized");
+                icon.textContent = "[-]";
+            } else {
+                panel.classList.add("minimized");
+                icon.textContent = "[+]";
             }
-
-            const buffers = await Promise.all(
-                fileParts.map(part => fetchWithProgress(part))
-            );
-            const mergedBlob = new Blob(buffers);
-            const response = new Response(mergedBlob);
-            await cache.put(cacheKey, response);
-            return URL.createObjectURL(mergedBlob);
         }
 
-        function getParts(file, start, end) {
-            let parts = [];
-            for (let i = start; i <= end; i++) {
-                parts.push(file + ".part" + i);
-            }
-            return parts;
-        }
-
-        (async () => {
+        // Drop Cache API contents manually
+        async function clearGameCache() {
+            if(!confirm("Are you sure you want to completely clear the cached web assets? This will force a full redownload.")) return;
             try {
-                // 1. Fetch and merge chunked game assets
-                const [dataUrl, wasmUrl, asmUrl] = await Promise.all([
-                    mergeFiles(getParts("Build/CupheadPort.data.unityweb", 1, 103), "CupheadPort.data.unityweb"),
-                    mergeFiles(getParts("Build/CupheadPort.wasm.code.unityweb", 1, 2), "CupheadPort.wasm.code.unityweb"),
-                    mergeFiles(getParts("Build/CupheadPort.asm.code.unityweb", 1, 3), "CupheadPort.asm.code.unityweb"),
-                ]);
-
-                // 2. Intercept XMLHttpRequest to serve merged blobs
-                const originalOpen = XMLHttpRequest.prototype.open;
-                XMLHttpRequest.prototype.open = function (method, url, ...rest) {
-                    if (url.includes("CupheadPort.data.unityweb")) {
-                        url = dataUrl;
-                    } else if (url.includes("CupheadPort.wasm.code.unityweb")) {
-                        url = wasmUrl;
-                    } else if (url.includes("CupheadPort.asm.code.unityweb")) {
-                        url = asmUrl;
-                    }
-                    return originalOpen.call(this, method, url, ...rest);
-                };
-
-                loadingText.textContent = "LAUNCHING GAME...";
-
-                // 3. Instantiate Unity and handle final completion cleanup
-                var unityInstance = UnityLoader.instantiate("gameContainer", "Build/CupheadPort.json", {
-                    onProgress: function(instance, progress) {
-                        if (progress === 1) {
-                            setTimeout(() => {
-                                if(loadingText) loadingText.remove();
-                            }, 1000); // Gives WebGL engine 1 second to draw the initial screen canvas safely
-                        } else {
-                            loadingText.textContent = "COMPILING ENGINE... " + Math.round(progress * 100) + "%";
-                        }
-                    }
-                });
-            } catch (err) {
-                loadingText.textContent = "ERROR LOADING GAME: " + err.message;
-                console.error(err);
+                const deleted = await caches.delete(cacheName);
+                devLog(`Cache mapping database deletion query execution output: ${deleted}`, "WARN");
+                alert("Cache Storage pipeline cleared successfully. Reloading runtime window context!");
+                window.location.reload();
+            } catch(e) {
+                devLog(`Failed to flush target database array map cleanly: ${e.message}`, "ERROR");
             }
-        })();
-    </script>
-</body>
-</html>
+        }
+
+        // Read Cache API maps to dynamically show status configurations
+        async function updateCacheStatusFields() {
+            try {
+                const cache = await caches.open(cacheName);
+                const assets = [
+                    { key: "CupheadPort.data.unityweb", id: "status-data" },
+                    { key: "CupheadPort.wasm.code.unityweb", id: "status-wasm" },
+                    { key: "CupheadPort.asm.code.unityweb", id: "status-asm" },
+                    { key: "CupheadPort.asm.framework.unityweb", id: "status-framework" },
+                    { key: "CupheadPort.asm.memory.unityweb", id: "status-memory" }
+                ];
+                
+                for (let asset of assets) {
+                    const matched = await cache.match(asset.key);
+Use code with caution.let el = document.getElementById(asset.id);if (el) {el.textContent = matched ? "CACHED (Instant Ready)" : "REMOTE (Needs Stream)";el.style.color = matched ? "#22c55e" : "#eab308";}}} catch (e) {devLog("Failed to compute precise cache memory database diagnostics map.", "ERROR");}}// Core data stream chunk byte parser loopasync function fetchWithProgress(url) {devLog(Pulling dependency packet address buffer connection: ${url});const response = await fetch(url);if (!response.ok) throw new Error(HTTP Error Status Response Code: ${response.status} inside ${url});const reader = response.body.getReader();let chunks = [];let received = 0;while (true) {const { done, value } = await reader.read();if (done) break;received += value.length;loadedBytes += value.length;chunks.push(value);let mbDone = (loadedBytes / (1024 * 1024)).toFixed(2);loadingText.textContent = LOADING ASSETS... ${mbDone} MB / ${mbTotal} MB;}let fullBuffer = new Uint8Array(received);let offset = 0;for (let chunk of chunks) {fullBuffer.set(chunk, offset);offset += chunk.length;}return fullBuffer.buffer;}// Cache and manage individual standard engine filesasync function loadSingleFile(url, cacheKey) {const cache = await caches.open(cacheName);const cachedResponse = await cache.match(cacheKey);if (cachedResponse) {devLog(Mounting explicit non-chunk asset mapping natively from storage: ${cacheKey}, "SUCCESS");const blob = await cachedResponse.blob();loadedBytes += blob.size;return URL.createObjectURL(blob);}devLog(Cache miss occurred for asset layout target. Creating fallback internet stream link: ${url}, "WARN");const buffer = await fetchWithProgress(url);const mergedBlob = new Blob([buffer]);await cache.put(cacheKey, new Response(mergedBlob));return URL.createObjectURL(mergedBlob);}// Assemble segmented chunk splits together into storage objectsasync function mergeFiles(fileParts, cacheKey) {const cache = await caches.open(cacheName);const cachedResponse = await cache.match(cacheKey);if (cachedResponse) {devLog(Reconstructed split system array loaded cleanly via local database cache pointer map: ${cacheKey}, "SUCCESS");const blob = await cachedResponse.blob();loadedBytes += blob.size;return URL.createObjectURL(blob);}devLog(Beginning sequence map alignment routines for targeted file compound group: ${cacheKey});const buffers = await Promise.all(fileParts.map(part => fetchWithProgress(part)));devLog(Compiling individual binary payload fragments into a unified memory cluster container...);const mergedBlob = new Blob(buffers);await cache.put(cacheKey, new Response(mergedBlob));return URL.createObjectURL(mergedBlob);}function getParts(file, start, end) {let parts = [];for (let i = start; i <= end; i++) {parts.push(file + ".part" + i);}return parts;}(async () => {try {await updateCacheStatusFields();devLog("Configuring low-level XMLHttpRequest proxy injection hooks...");// 1. Gather all file dependencies (both split parts and standalone engine blocks)const [dataUrl, wasmUrl, asmUrl, frameworkUrl, memoryUrl] = await Promise.all([mergeFiles(getParts("Build/CupheadPort.data.unityweb", 1, 103), "CupheadPort.data.unityweb"),mergeFiles(getParts("Build/CupheadPort.wasm.code.unityweb", 1, 2), "CupheadPort.wasm.code.unityweb"),mergeFiles(getParts("Build/CupheadPort.asm.code.unityweb", 1, 3), "CupheadPort.asm.code.unityweb"),loadSingleFile("Build/CupheadPort.asm.framework.unityweb", "CupheadPort.asm.framework.unityweb"),loadSingleFile("Build/CupheadPort.asm.memory.unityweb", "CupheadPort.asm.memory.unityweb")]);await updateCacheStatusFields();// 2. Intercept engine calls to feed local Blobs directly to UnityLoader.jsconst originalOpen = XMLHttpRequest.prototype.open;XMLHttpRequest.prototype.open = function (method, url, ...rest) {if (url.includes("CupheadPort.data.unityweb")) {devLog("Proxy redirected virtual address context mapping for resource [CupheadPort.data]");url = dataUrl;} else if (url.includes("CupheadPort.wasm.code.unityweb")) {devLog("Proxy redirected virtual address context mapping for resource [CupheadPort.wasm]");url = wasmUrl;} else if (url.includes("CupheadPort.asm.code.unityweb")) {devLog("Proxy redirected virtual address context mapping for resource [CupheadPort.asm]");url = asmUrl;} else if (url.includes("CupheadPort.asm.framework.unityweb")) {devLog("Proxy redirected virtual address context mapping for resource [CupheadPort.framework]");url = frameworkUrl;} else if (url.includes("CupheadPort.asm.memory.unityweb")) {devLog("Proxy redirected virtual address context mapping for resource [CupheadPort.memory]");url = memoryUrl;}return originalOpen.call(this, method, url, ...rest);};loadingText.textContent = "LAUNCHING GAME...";devLog("Handing current memory allocation context boundaries off to the Unity WebGL Framework thread loop...");// 3. Mount and initialize the gamevar unityInstance = UnityLoader.instantiate("gameContainer", "Build/CupheadPort.json", {onProgress: function(instance, progress) {if (progress === 1) {devLog("Unity engine player instantiation sequence finalized cleanly!", "SUCCESS");setTimeout(() => {if(loadingText) loadingText.remove();}, 1000);} else {loadingText.textContent = "COMPILING ENGINE... " + Math.round(progress * 100) + "%";}}});} catch (err) {loadingText.textContent = "ERROR LOADING GAME: " + err.message;devLog(Critical runtime breakdown encountered during asset resolution loops: ${err.message}, "ERROR");console.error(err);}})();
